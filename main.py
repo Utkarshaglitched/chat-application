@@ -1,9 +1,13 @@
-from fastapi import FastAPI, WebSocket, Request
+from fastapi import FastAPI, WebSocket, Request, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
-
+from model import User
 
 app = FastAPI()
 templates=Jinja2Templates(directory="template")
+user_obj_list=[
+
+]
+
 
 @app.get("/")
 def landing(request: Request):
@@ -21,16 +25,24 @@ async def websoc(
     print("WEBSOCKET REQUEST RECEIVED")
 
     await websocket.accept()
-
+    user=User(name,websocket)
+    user_obj_list.append(
+        user
+    )
     print("WEBSOCKET ACCEPTED")
 
-    while True:
-        message = await websocket.receive_text()
+    try:
+        while True:
+            message = await websocket.receive_json()
+            target=message["to"]
+            msg=message["message"]
 
-        print("MESSAGE:", message)
-        print("client:", websocket.client)
+            for user in user_obj_list:
+                if user.username==target:
+                    await user.send_message(msg)
 
-        await websocket.send_text(message)
+    except WebSocketDisconnect:
+        user_obj_list.remove(user)
 
 
 @app.get("/{name}")
@@ -42,3 +54,11 @@ def host_page(request: Request, name: str):
             "username": name
         }
     )
+
+
+@app.get("/ws/connections")
+def avail_connections():
+
+    users=[x.username for x in user_obj_list]
+
+    return users

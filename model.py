@@ -3,3 +3,5 @@ class User:
         self.username=username
         self.connection=connection
 
+    async def send_message(self,message):
+        await self.connection.send_text(message)
