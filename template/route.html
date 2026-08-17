@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Chat</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            width: 350px;
+            padding: 35px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 20px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #222;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #444;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+
+        <h1>💬 Join Chat</h1>
+
+        <p>Enter your username</p>
+
+        <input
+            id="username"
+            type="text"
+            placeholder="Username"
+            autocomplete="off"
+        >
+
+        <button onclick="joinChat()">
+            Join
+        </button>
+
+    </div>
+
+
+    <script>
+
+        function joinChat() {
+
+            const username =
+                document.getElementById("username").value.trim();
+
+            if (username === "") {
+                alert("Please enter a username.");
+                return;
+            }
+
+            // Redirect to /{name}
+            window.location.href =
+                "/" + encodeURIComponent(username);
+        }
+
+    </script>
+
+</body>
+
+</html>
