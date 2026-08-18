@@ -36,11 +36,21 @@ async def websoc(
             message = await websocket.receive_json()
             target=message["to"]
             msg=message["message"]
+            type=message["type"]
+            
 
             for user in user_obj_list:
                 if user.username==target:
-                    await user.send_message(msg)
+                    await user.send_message(
+                        {
+                            "to":target,
+                            "from":name,
+                            "message":msg,
+                            "type":type
+                        }
+                    )
 
+            
     except WebSocketDisconnect:
         user_obj_list.remove(user)
 

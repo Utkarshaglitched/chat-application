@@ -4,4 +4,6 @@ class User:
         self.connection=connection
 
     async def send_message(self,message):
-        await self.connection.send_text(message)
+        await self.connection.send_json(message)
+    
+    

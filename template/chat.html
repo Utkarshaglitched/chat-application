@@ -185,6 +185,38 @@
             border-color: #27272a;
             cursor: not-allowed;
         }
+
+        .attach-btn {
+            padding: 10px 14px;
+            border: 1px solid #3f3f46;
+            border-radius: 8px;
+            background: #27272a;
+            color: #ffffff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .attach-btn:hover:not(:disabled) {
+            background: #3f3f46;
+        }
+
+        .attach-btn:disabled {
+            background: #18181b;
+            color: #52525b;
+            border-color: #27272a;
+            cursor: not-allowed;
+        }
+
+        .message img {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -209,6 +241,8 @@
             <div id="chatWith" class="chat-with"></div>
             <div id="messages" class="messages"></div>
             <div class="input-area">
+                <input type="file" id="fileInput" accept=".png,.jpg,.jpeg" style="display: none;" onchange="handleFileSelect(event)">
+                <button id="attachButton" class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Attach Image" disabled>📎</button>
                 <input id="messageInput" type="text" placeholder="Type a message..." autocomplete="off">
                 <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
             </div>
@@ -229,8 +263,11 @@
         const messages = document.getElementById("messages");
         const messageInput = document.getElementById("messageInput");
         const sendButton = document.getElementById("sendButton");
+        const attachButton = document.getElementById("attachButton");
+        const fileInput = document.getElementById("fileInput");
 
         let selectedUser = null;
+        let convo = {};
 
         socket.onopen = () => {
             console.log("WebSocket connected as:", username);
@@ -240,7 +277,23 @@
 
         socket.onmessage = (event) => {
             console.log("Message received:", event.data);
-            addMessage(event.data, false);
+            try {
+                const data = JSON.parse(event.data);
+                const partner = data.from;
+                if (partner) {
+                    if (!convo[partner]) {
+                        convo[partner] = [];
+                    }
+                    convo[partner].push(data);
+
+                    // Only display if the message complies with selected user and to/from validation
+                    if (selectedUser && partner === selectedUser && data.to === username) {
+                        displayMessage(data);
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse incoming WebSocket message:", e);
+            }
         };
 
         socket.onerror = (error) => {
@@ -252,6 +305,7 @@
             console.log("WebSocket disconnected");
             status.textContent = "Disconnected";
             sendButton.disabled = true;
+            attachButton.disabled = true;
         };
 
         async function loadUsers() {
@@ -283,14 +337,33 @@
             if (selectedUser === "") {
                 chatBox.style.display = "none";
                 sendButton.disabled = true;
+                attachButton.disabled = true;
+                messages.innerHTML = "";
                 return;
             }
 
             chatBox.style.display = "flex";
             chatWith.textContent = "Chatting with " + selectedUser;
             sendButton.disabled = false;
+            attachButton.disabled = false;
+            
+            renderConversation(selectedUser);
             messageInput.focus();
         });
+
+        function renderConversation(user) {
+            messages.innerHTML = "";
+            if (!convo[user]) return;
+
+            convo[user].forEach(msgObj => {
+                // Validate compliance with to and from
+                const isValid = (msgObj.from === user && msgObj.to === username) || 
+                                (msgObj.from === username && msgObj.to === user);
+                if (isValid) {
+                    displayMessage(msgObj);
+                }
+            });
+        }
 
         function sendMessage() {
             const message = messageInput.value.trim();
@@ -309,29 +382,112 @@
                 return;
             }
 
+            const msgObj = {
+                to: selectedUser,
+                from: username,
+                message: message,
+                type: "text"
+            };
+
             socket.send(
                 JSON.stringify({
                     to: selectedUser,
-                    message: message
+                    message: message,
+                    type: "text"
                 })
             );
 
-            addMessage(message, true);
+            if (!convo[selectedUser]) {
+                convo[selectedUser] = [];
+            }
+            convo[selectedUser].push(msgObj);
+
+            if (selectedUser) {
+                displayMessage(msgObj);
+            }
+
             messageInput.value = "";
             messageInput.focus();
         }
 
-        function addMessage(text, mine) {
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (selectedUser === null || selectedUser === "") {
+                alert("Select a user first.");
+                event.target.value = "";
+                return;
+            }
+
+            const fileName = file.name.toLowerCase();
+            const allowedExtensions = [".png", ".jpg", ".jpeg"];
+            const isValidExt = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+            if (!isValidExt) {
+                alert("Only PNG, JPG, and JPEG images are allowed!");
+                event.target.value = "";
+                return;
+            }
+
+            if (socket.readyState !== WebSocket.OPEN) {
+                alert("WebSocket is not connected.");
+                event.target.value = "";
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const base64Data = e.target.result;
+                const msgObj = {
+                    to: selectedUser,
+                    from: username,
+                    message: base64Data,
+                    type: "image"
+                };
+
+                socket.send(
+                    JSON.stringify({
+                        to: selectedUser,
+                        message: base64Data,
+                        type: "image"
+                    })
+                );
+
+                if (!convo[selectedUser]) {
+                    convo[selectedUser] = [];
+                }
+                convo[selectedUser].push(msgObj);
+
+                if (selectedUser) {
+                    displayMessage(msgObj);
+                }
+
+                event.target.value = "";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayMessage(msgObj) {
             const message = document.createElement("div");
             message.classList.add("message");
 
-            if (mine) {
+            const isMine = msgObj.from === username;
+            if (isMine) {
                 message.classList.add("mine");
             } else {
                 message.classList.add("theirs");
             }
 
-            message.textContent = text;
+            if (msgObj.type === "image") {
+                const img = document.createElement("img");
+                img.src = msgObj.message;
+                img.alt = "Image";
+                message.appendChild(img);
+            } else {
+                message.textContent = msgObj.message;
+            }
+
             messages.appendChild(message);
             messages.scrollTop = messages.scrollHeight;
         }
